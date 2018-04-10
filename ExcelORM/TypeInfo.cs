@@ -13,6 +13,7 @@ namespace ExcelORM
     /// </summary>
     internal class TypeInfo
     {
+        #region 私有字段
         /// <summary>
         /// 使用的Type
         /// </summary>
@@ -36,7 +37,8 @@ namespace ExcelORM
         /// <summary>
         /// 使用的表对象
         /// </summary>
-        private ISheet m_useSheet = null;
+        private ISheet m_useSheet = null; 
+        #endregion
 
         /// <summary>
         /// 构造方法
@@ -167,6 +169,7 @@ namespace ExcelORM
             return returnValues;
         }
 
+        #region 私有方法
         /// <summary>
         /// 设置值
         /// </summary>
@@ -176,7 +179,7 @@ namespace ExcelORM
         /// <param name="lastValue"></param>
         /// <param name="nowGetNoneLstPropertyValue"></param>
         /// <returns></returns>
-        private object SetValue(int useLength, string[] useValues,string[] readedRowValue
+        private object SetValue(int useLength, string[] useValues, string[] readedRowValue
             , List<object> returnValues, object lastValue, int nowGetNoneLstPropertyValue)
         {
             //使用的临时对象
@@ -237,14 +240,14 @@ namespace ExcelORM
         /// <param name="continueTag"></param>
         /// <param name="useRow"></param>
         /// <param name="readedValue"></param>
-        private void ReadOneRow(int useLength, string[] useValues, string[] readedValues,ref int readedValue
+        private void ReadOneRow(int useLength, string[] useValues, string[] readedValues, ref int readedValue
             , ref int nowGetNoneLstPropertyValue, ref bool continueTag, IRow useRow)
         {
             //读取列
             for (int propertyIndex = 0; propertyIndex < useLength; propertyIndex++)
             {
                 var tempProperty = m_lstPropertyInfos[propertyIndex];
-               
+
                 //重置临时值
                 readedValues[propertyIndex] = null;
 
@@ -280,8 +283,8 @@ namespace ExcelORM
                 //添加已读取属性
                 readedValue++;
             }
-        }
-
+        } 
+        #endregion
 
     }
 }

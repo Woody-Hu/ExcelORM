@@ -12,6 +12,7 @@ namespace ExcelORM
     /// </summary>
     public class ClassAttribute : Attribute
     {
+        #region 私有字段
         /// <summary>
         /// 使用的表索引
         /// </summary>
@@ -25,7 +26,8 @@ namespace ExcelORM
         /// <summary>
         /// 使用的数据起始行索引
         /// </summary>
-        private int m_realUseDataStartRowIndex = -1;
+        private int m_realUseDataStartRowIndex = -1; 
+        #endregion
 
         /// <summary>
         /// 使用的数据起始行索引

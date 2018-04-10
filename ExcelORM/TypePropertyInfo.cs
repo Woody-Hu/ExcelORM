@@ -152,18 +152,6 @@ namespace ExcelORM
         }
 
         /// <summary>
-        /// 使用的转换器
-        /// </summary>
-        private ChageValueDelegate ValueTransformer
-        {
-            get
-            {
-                return m_usePropertyAttribute.UseTransformer;
-            }
-        }
-
-
-        /// <summary>
         /// 检查属性是否可用
         /// </summary>
         /// <param name="inputPropertyInfo"></param>
@@ -248,6 +236,17 @@ namespace ExcelORM
         }
 
         #region 私有方法
+        /// <summary>
+        /// 使用的转换器
+        /// </summary>
+        private ChageValueDelegate ValueTransformer
+        {
+            get
+            {
+                return m_usePropertyAttribute.UseTransformer;
+            }
+        }
+
         /// <summary>
         /// 设置列表型数值
         /// </summary>
