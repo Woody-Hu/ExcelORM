@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ExcelORM
@@ -26,6 +27,11 @@ namespace ExcelORM
         /// 使用的属性特性
         /// </summary>
         private static Type m_usePropertyAttributeType = typeof(PropertyAttribute);
+
+        /// <summary>
+        /// 使用的读写锁
+        /// </summary>
+        private static ReaderWriterLockSlim m_useReaderWriterLocker = new ReaderWriterLockSlim();
 
         /// <summary>
         /// 字典映射
@@ -69,7 +75,11 @@ namespace ExcelORM
 
             RegisteredType(useType);
 
+            //进入读锁
+            m_useReaderWriterLocker.EnterReadLock();
             var useInfo = m_useTypeMap[useType];
+            //离开读锁
+            m_useReaderWriterLocker.ExitReadLock();
 
             //若注册失败
             if (null == useInfo)
@@ -117,7 +127,7 @@ namespace ExcelORM
         private void RegisteredType(Type inputType)
         {
             //若已存在
-            if (m_useTypeMap.ContainsKey(inputType) || null == inputType)
+            if (CheckInput(inputType))
             {
                 return;
             }
@@ -128,7 +138,11 @@ namespace ExcelORM
             //获取检查
             if (null == classAttributes || 1 != classAttributes.Length)
             {
+                //进入写锁
+                m_useReaderWriterLocker.EnterWriteLock();
                 m_useTypeMap.Add(inputType, null);
+                //离开写锁
+                m_useReaderWriterLocker.ExitWriteLock();
                 return;
             }
 
@@ -138,7 +152,11 @@ namespace ExcelORM
             //判断特性是否可用
             if (0 > useClassAtrribute.SheetIndex && string.IsNullOrWhiteSpace(useClassAtrribute.SheetName))
             {
+                //进入写锁
+                m_useReaderWriterLocker.EnterWriteLock();
                 m_useTypeMap.Add(inputType, null);
+                //离开写锁
+                m_useReaderWriterLocker.ExitWriteLock();
                 return;
             }
 
@@ -187,6 +205,8 @@ namespace ExcelORM
                 tempPropertyMap.Add(oneProperty, tempPropertyAttribute);
             }
 
+            //进入写锁
+            m_useReaderWriterLocker.EnterWriteLock();
             //注册
             if (0 != tempPropertyMap.Count)
             {
@@ -196,6 +216,24 @@ namespace ExcelORM
             {
                 m_useTypeMap.Add(inputType, null);
             }
+            //离开写锁
+            m_useReaderWriterLocker.ExitWriteLock();
+           
+        }
+
+        /// <summary>
+        /// 检查输入
+        /// </summary>
+        /// <param name="inputType"></param>
+        /// <returns></returns>
+        private static bool CheckInput(Type inputType)
+        {
+            //进入读锁
+            m_useReaderWriterLocker.EnterReadLock();
+            bool returnValue = null == inputType || m_useTypeMap.ContainsKey(inputType);
+            //进入写锁
+            m_useReaderWriterLocker.ExitReadLock();
+            return returnValue;
         }
 
         /// <summary>
