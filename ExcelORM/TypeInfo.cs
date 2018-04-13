@@ -58,42 +58,6 @@ namespace ExcelORM
         }
 
         /// <summary>
-        /// 数据准备
-        /// </summary>
-        /// <param name="inputWorkbook"></param>
-        private void PrepareData(IWorkbook inputWorkbook)
-        {
-            m_useSheet = null;
-            m_dataStartRowNumber = 0;
-
-            //利用索引
-            if (0 <= m_useClassAttribute.SheetIndex)
-            {
-                m_useSheet = inputWorkbook.GetSheetAt(m_useClassAttribute.SheetIndex);
-            }
-            else
-            {
-                m_useSheet = inputWorkbook.GetSheet(m_useClassAttribute.SheetName);
-            }
-
-            int useDataRowIndex = 0;
-
-            int tempDataRowIndex = 0;
-
-            //初始化属性封装
-            foreach (var onePropertyInfo in m_lstPropertyInfos)
-            {
-                onePropertyInfo.PrepareData(m_useSheet, out tempDataRowIndex);
-                //使用行冒泡
-                useDataRowIndex = Math.Max(useDataRowIndex, tempDataRowIndex);
-            }
-
-            //设置使用数据起始行号
-            m_dataStartRowNumber = this.m_useClassAttribute.RealUseDataStartRowIndex < 0 ? useDataRowIndex : this.m_useClassAttribute.RealUseDataStartRowIndex;
-
-        }
-
-        /// <summary>
         /// 读取
         /// </summary>
         /// <param name="input"></param>
@@ -101,7 +65,7 @@ namespace ExcelORM
         internal List<object> ReadWorkBook(IWorkbook input)
         {
             //准备数据
-            PrepareData(input);
+            PrepareDataForRead(input);
 
             int useLength = m_lstPropertyInfos.Count;
 
@@ -169,7 +133,135 @@ namespace ExcelORM
             return returnValues;
         }
 
+        /// <summary>
+        /// 写出
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="lstInputValues"></param>
+        internal void WriteToWorkBook(IWorkbook input,List<object> lstInputValues)
+        {
+            //准备数据
+            PrepareDataForeWrite(input);
+
+            int nowUseRowIndex = 1;
+            //附加行号
+            int appendIndexNumber = 0;
+            Dictionary<int, IRow> useRowDic = new Dictionary<int, IRow>();
+
+            foreach (var oneValue in lstInputValues)
+            {
+                //重置
+                appendIndexNumber = 0;
+
+                appendIndexNumber = WriteOneValue(nowUseRowIndex, appendIndexNumber, useRowDic, oneValue);
+
+                nowUseRowIndex = nowUseRowIndex + appendIndexNumber;
+            }
+        }
+
+
         #region 私有方法
+        /// <summary>
+        /// 将一个对象写出
+        /// </summary>
+        /// <param name="nowUseRowIndex"></param>
+        /// <param name="appendIndexNumber"></param>
+        /// <param name="useRowDic"></param>
+        /// <param name="oneValue"></param>
+        /// <returns></returns>
+        private int WriteOneValue(int nowUseRowIndex, int appendIndexNumber, Dictionary<int, IRow> useRowDic, object oneValue)
+        {
+            foreach (var onePropertyTypInfo in m_lstPropertyInfos)
+            {
+                //获取值
+                var values = onePropertyTypInfo.GetValue(oneValue);
+                //获取附加行号
+                appendIndexNumber = Math.Max(appendIndexNumber, values.Count - 1);
+                IRow tempRow;
+                var tempIndex = nowUseRowIndex;
+                //循环写值
+                foreach (var onestrValue in values)
+                {
+                    if (!useRowDic.ContainsKey(tempIndex))
+                    {
+                        useRowDic.Add(tempIndex, m_useSheet.CreateRow(tempIndex));
+                    }
+                    tempRow = useRowDic[tempIndex];
+                    //写值
+                    var tempCell = tempRow.CreateCell(onePropertyTypInfo.UseColumnIndex);
+                    tempCell.SetCellType(CellType.String);
+                    tempCell.SetCellValue(onestrValue.ToString());
+                    tempIndex++;
+                }
+            }
+
+            return appendIndexNumber;
+        }
+
+        private void PrepareDataForeWrite(IWorkbook inputWorkbook)
+        {
+            m_useSheet = null;
+
+            if (!string.IsNullOrEmpty(m_useClassAttribute.SheetName))
+            {
+                m_useSheet = inputWorkbook.CreateSheet(m_useClassAttribute.SheetName);
+            }
+            else
+            {
+                m_useSheet = inputWorkbook.CreateSheet();
+            }
+
+            //创建标头行
+            IRow useHeaderRow = m_useSheet.CreateRow(0);
+
+            int tempIndex = 0;
+            HashSet<int> usedSet = new HashSet<int>();
+
+            //初始化属性封装
+            foreach (var onePropertyInfo in m_lstPropertyInfos)
+            {
+                //准备列数据
+                onePropertyInfo.PrepareDataForWrite(useHeaderRow, ref tempIndex, ref usedSet);
+            }
+        }
+
+
+        /// <summary>
+        /// 数据准备
+        /// </summary>
+        /// <param name="inputWorkbook"></param>
+        private void PrepareDataForRead(IWorkbook inputWorkbook)
+        {
+            m_useSheet = null;
+            m_dataStartRowNumber = 0;
+
+            //利用索引
+            if (0 <= m_useClassAttribute.SheetIndex)
+            {
+                m_useSheet = inputWorkbook.GetSheetAt(m_useClassAttribute.SheetIndex);
+            }
+            else
+            {
+                m_useSheet = inputWorkbook.GetSheet(m_useClassAttribute.SheetName);
+            }
+
+            int useDataRowIndex = 0;
+
+            int tempDataRowIndex = 0;
+
+            //初始化属性封装
+            foreach (var onePropertyInfo in m_lstPropertyInfos)
+            {
+                onePropertyInfo.PrepareDataForRead(m_useSheet, out tempDataRowIndex);
+                //使用行冒泡
+                useDataRowIndex = Math.Max(useDataRowIndex, tempDataRowIndex);
+            }
+
+            //设置使用数据起始行号
+            m_dataStartRowNumber = this.m_useClassAttribute.RealUseDataStartRowIndex < 0 ? useDataRowIndex : this.m_useClassAttribute.RealUseDataStartRowIndex;
+
+        }
+
         /// <summary>
         /// 设置值
         /// </summary>

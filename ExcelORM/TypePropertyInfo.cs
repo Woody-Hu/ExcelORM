@@ -163,13 +163,47 @@ namespace ExcelORM
             return IfTypeCanUse(propertyType) || CheckLstTypeProperty(propertyType);
         }
 
+        internal void PrepareDataForWrite(IRow inputRow, ref int nowColumnIndex,ref HashSet<int> usedColumnIndex)
+        {
+            //已赋值列索引
+            if (0 <= m_usePropertyAttribute.UseColumnIndex && !usedColumnIndex.Contains(m_usePropertyAttribute.UseColumnIndex))
+            {
+                m_useColumnIndex = m_usePropertyAttribute.UseColumnIndex;
+            }
+            else
+            {
+                if (!usedColumnIndex.Contains(nowColumnIndex))
+                {
+                    m_useColumnIndex = nowColumnIndex;
+                }
+                else
+                {
+                    //寻找一个可用索引
+                    while (usedColumnIndex.Contains(nowColumnIndex))
+                    {
+                        nowColumnIndex++;
+                    }
+                }
+
+                //索引更新
+                nowColumnIndex++;
+            }
+
+            //若有标头
+            if (!string.IsNullOrWhiteSpace(m_usePropertyAttribute.UseColumnName))
+            {
+                //设置标头
+                inputRow.CreateCell(m_useColumnIndex).SetCellValue(m_usePropertyAttribute.UseColumnName);
+            }
+        }
+
         /// <summary>
         /// 准备数据
         /// </summary>
         /// <param name="inputSheet"></param>
         /// <param name="inputClassAttribute"></param>
         /// <param name="headerRowIndex"></param>
-        internal void PrepareData(ISheet inputSheet, out int headerRowIndex)
+        internal void PrepareDataForRead(ISheet inputSheet, out int headerRowIndex)
         {
             headerRowIndex = 0;
 
@@ -232,6 +266,45 @@ namespace ExcelORM
             {
                 SetLstValue(inputObject, inputValue);
             }
+        }
+
+        /// <summary>
+        /// 获取属性的值
+        /// </summary>
+        /// <param name="inputObject"></param>
+        /// <returns></returns>
+        internal List<string> GetValue(object inputObject)
+        {
+            List<string> returnValue = new List<string>();
+            //单值模式
+            if (!IfIsLstType)
+            {
+                var tempValue = m_usePropertyInfo.GetValue(inputObject);
+                if (null != tempValue)
+                {
+                    string useStr = tempValue.ToString();
+                    returnValue.Add(useStr);
+                }
+            }
+            else
+            {
+                IList useIList = m_usePropertyInfo.GetValue(inputObject) as IList;
+
+                if (null != useIList)
+                {
+                    foreach (var oneValue in useIList)
+                    {
+                        if (null == oneValue)
+                        {
+                            continue;
+                        }
+                        returnValue.Add(oneValue.ToString());
+                    }
+                }
+
+            }
+
+            return returnValue;
 
         }
 

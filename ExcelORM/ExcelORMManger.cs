@@ -41,7 +41,17 @@ namespace ExcelORM
         /// <summary>
         /// 转换器字典
         /// </summary>
-        private Dictionary<string, ChageValueDelegate> m_useChangeDelDic = new Dictionary<string, ChageValueDelegate>(); 
+        private Dictionary<string, ChageValueDelegate> m_useChangeDelDic = new Dictionary<string, ChageValueDelegate>();
+
+        /// <summary>
+        /// xlsx文件名后缀标志
+        /// </summary>
+        private const string m_strxlsx = ".xlsx";
+
+        /// <summary>
+        /// xls文件名后缀标志
+        /// </summary>
+        private const string m_strxls = ".xls";
         #endregion
 
         /// <summary>
@@ -71,15 +81,7 @@ namespace ExcelORM
         {
             lstReadedValue = new List<T>();
 
-            Type useType = typeof(T);
-
-            RegisteredType(useType);
-
-            //进入读锁
-            m_useReaderWriterLocker.EnterReadLock();
-            var useInfo = m_useTypeMap[useType];
-            //离开读锁
-            m_useReaderWriterLocker.ExitReadLock();
+            TypeInfo useInfo = RegisteredType<T>();
 
             //若注册失败
             if (null == useInfo)
@@ -98,11 +100,11 @@ namespace ExcelORM
             IWorkbook useWorkBook = null;
 
             //工厂制备WorkBook
-            if (useFieInfo.Extension.ToLower().Equals(".xlsx"))
+            if (useFieInfo.Extension.ToLower().Equals(m_strxlsx))
             {
                 useWorkBook = new XSSFWorkbook(useFieInfo.FullName);
             }
-            else if (useFieInfo.Extension.ToLower().Equals(".xls"))
+            else if (useFieInfo.Extension.ToLower().Equals(m_strxls))
             {
                 using (FileStream fs = new FileStream(useFieInfo.FullName, FileMode.Open))
                 {
@@ -121,10 +123,110 @@ namespace ExcelORM
         }
 
         /// <summary>
+       /// 尝试写出
+       /// </summary>
+       /// <typeparam name="T"></typeparam>
+       /// <param name="inputPath">输入的路径</param>
+       /// <param name="inputObjects">需写出的对象</param>
+       /// <param name="overWriteIfExists">若存在是否删除</param>
+       /// <returns></returns>
+        public bool TryWrite<T>(string inputPath,List<T> inputObjects,bool overWriteIfExists = true)
+        {
+            //输入检查
+            if (null == inputObjects || 0 == inputObjects.Count)
+            {
+                return false;
+            }
+
+            TypeInfo useInfo = RegisteredType<T>(true);
+
+            //若注册失败
+            if (null == useInfo)
+            {
+                return false;
+            }
+
+            FileInfo useFieInfo = new FileInfo(inputPath);
+
+            //若文件不存在
+            if (useFieInfo.Exists)
+            {
+                //若复写
+                if (overWriteIfExists)
+                {
+                    try
+                    {
+                        //尝试删除
+                        useFieInfo.Delete();
+                    }
+                    //异常保护
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            IWorkbook useWorkBook = null;
+
+            //工厂制备WorkBook
+            if (useFieInfo.Extension.ToLower().Equals(m_strxlsx))
+            {
+                useWorkBook = new XSSFWorkbook();
+            }
+            else if (useFieInfo.Extension.ToLower().Equals(m_strxls))
+            {
+                useWorkBook = new HSSFWorkbook();
+            }
+
+            //写出数据
+            useInfo.WriteToWorkBook(useWorkBook, inputObjects.Cast<object>().ToList());
+
+            try
+            {
+                using (Stream sw = new FileStream(inputPath, FileMode.CreateNew, FileAccess.Write))
+                {
+                    useWorkBook.Write(sw);
+                }
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+         
+        }
+
+        #region 私有字段
+        /// <summary>
+        /// 注册类型
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        private TypeInfo RegisteredType<T>(bool ifIsWrite = false)
+        {
+            Type useType = typeof(T);
+
+            RegisteredType(useType, ifIsWrite);
+
+            //进入读锁
+            m_useReaderWriterLocker.EnterReadLock();
+            var useInfo = m_useTypeMap[useType];
+            //离开读锁
+            m_useReaderWriterLocker.ExitReadLock();
+            return useInfo;
+        }
+
+        /// <summary>
         /// 注册一个类
         /// </summary>
         /// <param name="inputType"></param>
-        private void RegisteredType(Type inputType)
+        private void RegisteredType(Type inputType,bool ifIsWrite = false)
         {
             //若已存在
             if (CheckInput(inputType))
@@ -150,7 +252,8 @@ namespace ExcelORM
             var useClassAtrribute = (ClassAttribute)classAttributes[0];
 
             //判断特性是否可用
-            if (0 > useClassAtrribute.SheetIndex && string.IsNullOrWhiteSpace(useClassAtrribute.SheetName))
+            //若写状态则不限制
+            if ((0 > useClassAtrribute.SheetIndex && string.IsNullOrWhiteSpace(useClassAtrribute.SheetName)) && !ifIsWrite)
             {
                 //进入写锁
                 m_useReaderWriterLocker.EnterWriteLock();
@@ -178,11 +281,14 @@ namespace ExcelORM
 
                 //获取临时特性
                 tempPropertyAttribute = oneProperty.GetCustomAttribute(m_usePropertyAttributeType) as PropertyAttribute;
+
                 //没有特性跳过
                 //特性属性检查
-                if (null == tempPropertyAttribute ||
+                //且非写模式
+                if ((null == tempPropertyAttribute ||
                     (0 > tempPropertyAttribute.UseColumnIndex
-                    && string.IsNullOrWhiteSpace(tempPropertyAttribute.UseColumnName)))
+                    && string.IsNullOrWhiteSpace(tempPropertyAttribute.UseColumnName))) 
+                    && !ifIsWrite)
                 {
                     continue;
                 }
@@ -218,7 +324,7 @@ namespace ExcelORM
             }
             //离开写锁
             m_useReaderWriterLocker.ExitWriteLock();
-           
+
         }
 
         /// <summary>
@@ -231,7 +337,7 @@ namespace ExcelORM
             //进入读锁
             m_useReaderWriterLocker.EnterReadLock();
             bool returnValue = null == inputType || m_useTypeMap.ContainsKey(inputType);
-            //进入写锁
+            //进入读锁
             m_useReaderWriterLocker.ExitReadLock();
             return returnValue;
         }
@@ -244,7 +350,8 @@ namespace ExcelORM
         private bool CheckTransformer(PropertyAttribute tempPropertyAttribute)
         {
             return (!string.IsNullOrWhiteSpace(tempPropertyAttribute.UseTransformerName) && m_useChangeDelDic.ContainsKey(tempPropertyAttribute.UseTransformerName) && null != m_useChangeDelDic[tempPropertyAttribute.UseTransformerName]);
-        }
+        } 
+        #endregion
 
     }
 }
