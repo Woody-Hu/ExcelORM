@@ -240,11 +240,7 @@ namespace ExcelORM
             //获取检查
             if (null == classAttributes || 1 != classAttributes.Length)
             {
-                //进入写锁
-                m_useReaderWriterLocker.EnterWriteLock();
-                m_useTypeMap.Add(inputType, null);
-                //离开写锁
-                m_useReaderWriterLocker.ExitWriteLock();
+                WriteToDic(inputType,null);
                 return;
             }
 
@@ -255,11 +251,7 @@ namespace ExcelORM
             //若写状态则不限制
             if ((0 > useClassAtrribute.SheetIndex && string.IsNullOrWhiteSpace(useClassAtrribute.SheetName)) && !ifIsWrite)
             {
-                //进入写锁
-                m_useReaderWriterLocker.EnterWriteLock();
-                m_useTypeMap.Add(inputType, null);
-                //离开写锁
-                m_useReaderWriterLocker.ExitWriteLock();
+                WriteToDic(inputType, null);
                 return;
             }
 
@@ -311,20 +303,36 @@ namespace ExcelORM
                 tempPropertyMap.Add(oneProperty, tempPropertyAttribute);
             }
 
-            //进入写锁
-            m_useReaderWriterLocker.EnterWriteLock();
+
+
             //注册
             if (0 != tempPropertyMap.Count)
             {
-                m_useTypeMap.Add(inputType, new TypeInfo(inputType, useClassAtrribute, tempPropertyMap));
+                WriteToDic(inputType, new TypeInfo(inputType, useClassAtrribute, tempPropertyMap));
             }
             else
             {
-                m_useTypeMap.Add(inputType, null);
+                WriteToDic(inputType, null);
+            }
+
+
+        }
+
+        /// <summary>
+        /// 写到字典
+        /// </summary>
+        /// <param name="inputType"></param>
+        private static void WriteToDic(Type inputType,TypeInfo inputTypeInfo )
+        {
+            //进入写锁
+            m_useReaderWriterLocker.EnterWriteLock();
+            //内部检查
+            if (!m_useTypeMap.ContainsKey(inputType))
+            {
+                m_useTypeMap.Add(inputType, inputTypeInfo);
             }
             //离开写锁
             m_useReaderWriterLocker.ExitWriteLock();
-
         }
 
         /// <summary>
