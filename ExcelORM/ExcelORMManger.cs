@@ -132,20 +132,6 @@ namespace ExcelORM
        /// <returns></returns>
         public bool TryWrite<T>(string inputPath,List<T> inputObjects,bool overWriteIfExists = true)
         {
-            //输入检查
-            if (null == inputObjects || 0 == inputObjects.Count)
-            {
-                return false;
-            }
-
-            TypeInfo useInfo = RegisteredType<T>(true);
-
-            //若注册失败
-            if (null == useInfo)
-            {
-                return false;
-            }
-
             FileInfo useFieInfo = new FileInfo(inputPath);
 
             //若文件不存在
@@ -171,20 +157,29 @@ namespace ExcelORM
                 }
             }
 
-            IWorkbook useWorkBook = null;
 
-            //工厂制备WorkBook
+            bool useTag = true;
+
+            //检查版本
             if (useFieInfo.Extension.ToLower().Equals(m_strxlsx))
             {
-                useWorkBook = new XSSFWorkbook();
+                useTag = true;
             }
             else if (useFieInfo.Extension.ToLower().Equals(m_strxls))
             {
-                useWorkBook = new HSSFWorkbook();
+                useTag = false;
+            }
+            else
+            {
+                return false;
             }
 
-            //写出数据
-            useInfo.WriteToWorkBook(useWorkBook, inputObjects.Cast<object>().ToList());
+            IWorkbook useWorkBook = null;
+
+            if (false == TryWrite<T>(inputObjects, useTag, out useWorkBook))
+            {
+                return false;
+            }
 
             try
             {
@@ -200,6 +195,48 @@ namespace ExcelORM
                 return false;
             }
          
+        }
+
+        /// <summary>
+        /// 写出WorkBook对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="inputObjects"></param>
+        /// <param name="ifIsXlsx"></param>
+        /// <param name="useWorkBook"></param>
+        /// <returns></returns>
+        public bool TryWrite<T>(List<T> inputObjects, bool ifIsXlsx, out IWorkbook useWorkBook )
+        {
+            useWorkBook = null;
+
+            //输入检查
+            if (null == inputObjects || 0 == inputObjects.Count)
+            {
+                return false;
+            }
+
+            TypeInfo useInfo = RegisteredType<T>(true);
+
+            //若注册失败
+            if (null == useInfo)
+            {
+                return false;
+            }         
+
+            //工厂制备WorkBook
+            if (ifIsXlsx)
+            {
+                useWorkBook = new XSSFWorkbook();
+            }
+            else
+            {
+                useWorkBook = new HSSFWorkbook();
+            }
+
+            //写出数据
+            useInfo.WriteToWorkBook(useWorkBook, inputObjects.Cast<object>().ToList());
+
+            return true;
         }
 
         #region 私有字段
