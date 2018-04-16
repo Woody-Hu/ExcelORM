@@ -156,6 +156,8 @@ namespace ExcelORM
                 appendIndexNumber = WriteOneValue(nowUseRowIndex, appendIndexNumber, useRowDic, oneValue);
 
                 nowUseRowIndex = nowUseRowIndex + appendIndexNumber;
+
+                nowUseRowIndex++;
             }
         }
 
