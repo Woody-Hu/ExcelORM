@@ -117,6 +117,8 @@ namespace ExcelORM
 
             lstReadedValue = returnValue.Cast<T>().ToList();
 
+            useWorkBook.Close();
+
             return 0 != lstReadedValue.Count;
 
 
@@ -193,6 +195,10 @@ namespace ExcelORM
             catch (Exception)
             {
                 return false;
+            }
+            finally
+            {
+                useWorkBook.Close();
             }
          
         }
